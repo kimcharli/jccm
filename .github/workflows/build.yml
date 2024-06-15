@@ -1,0 +1,127 @@
+name: Build Electron App
+
+on:
+    push:
+        branches:
+            - main
+    pull_request:
+
+jobs:
+    build-macos:
+        runs-on: macos-latest
+        if: ${{ github.event.head_commit.message != 'Automated commit by GitHub Actions' }}
+        steps:
+            - uses: actions/checkout@v2
+              with:
+                  persist-credentials: false
+            - name: Set up Node.js
+              uses: actions/setup-node@v2
+              with:
+                  node-version: '20.10.0'
+            - name: Install Python and set up venv
+              run: |
+                  brew install python@3.9
+                  python3.9 -m venv myenv
+                  source myenv/bin/activate
+                  python3.9 -m ensurepip
+                  python3.9 -m pip install --upgrade pip
+                  python3.9 -m pip install setuptools
+              working-directory: ./jccm
+            - name: Install dependencies
+              run: |
+                  source myenv/bin/activate
+                  npm install
+              working-directory: ./jccm
+            - name: Install appdmg
+              run: |
+                  source myenv/bin/activate
+                  npm install --save-dev appdmg
+              working-directory: ./jccm
+            - name: Build and package (x64)
+              run: |
+                  source myenv/bin/activate
+                  npm run make -- --platform=darwin --arch=x64
+              working-directory: ./jccm
+            - name: Build and package (arm64)
+              run: |
+                  source myenv/bin/activate
+                  npm run make -- --platform=darwin --arch=arm64
+              working-directory: ./jccm
+            - name: Copy installer files
+              run: |
+                  mkdir -p ../installers
+                  ls -al ../installers
+                  cp out/make/jccm-darwin-*.dmg ../installers/
+                  pwd
+                  ls -al ../
+                  ls -al ../installers
+              working-directory: ./jccm
+            - name: Configure Git pull behavior
+              run: git config --global pull.rebase false
+            - name: Commit and push installer files
+              env:
+                  GITHUB_TOKEN: ${{ secrets.ALL }}
+              run: |
+                  echo "GITHUB_ACTOR=${{ github.actor }}"
+                  echo "GITHUB_REPOSITORY=${{ github.repository }}"
+                  git config --global user.email "${{ github.actor }}@users.noreply.github.com"
+                  git config --global user.name "${{ github.actor }}"
+                  git remote set-url origin https://${{ github.actor }}:${{ secrets.ALL }}@github.com/${{ github.repository }}.git
+                  git pull origin refs/heads/main --force --allow-unrelated-histories
+
+                  git lfs install
+                  git lfs track "*.dmg"
+                  git add .gitattributes
+
+                  git add ./installers
+                  git commit -m "Automated commit by GitHub Actions"
+                  git push origin HEAD:refs/heads/main
+
+    build-windows:
+        needs: build-macos
+        runs-on: windows-latest
+        if: ${{ github.event.head_commit.message != 'Automated commit by GitHub Actions' }}
+        steps:
+            - uses: actions/checkout@v2
+              with:
+                  persist-credentials: false
+            - name: Set up Node.js
+              uses: actions/setup-node@v2
+              with:
+                  node-version: '20.10.0'
+            - name: Install dependencies
+              run: npm install
+              working-directory: ./jccm
+            - name: Build and package (x64)
+              run: npm run make -- --platform=win32 --arch=x64
+              working-directory: ./jccm
+            - name: Copy installer files
+              run: |
+                  New-Item -ItemType Directory -Force -Path ../installers
+                  Get-ChildItem ../installers
+                  Copy-Item out/make/squirrel.windows/x64/*.exe ../installers/
+                  Copy-Item out/make/squirrel.windows/x64/*.msi ../installers/
+                  Get-Location
+                  Get-ChildItem ../
+                  Get-ChildItem ../installers
+              working-directory: ./jccm
+            - name: Configure Git pull behavior
+              run: git config --global pull.rebase false
+            - name: Commit and push installer files
+              env:
+                  GITHUB_TOKEN: ${{ secrets.ALL }}
+              run: |
+                  Write-Output "GITHUB_ACTOR=${{ github.actor }}"
+                  Write-Output "GITHUB_REPOSITORY=${{ github.repository }}"
+                  git config --global user.email "${{ github.actor }}@users.noreply.github.com"
+                  git config --global user.name "${{ github.actor }}"
+                  git remote set-url origin https://${{ github.actor }}:${{ secrets.ALL }}@github.com/${{ github.repository }}.git
+                  git pull origin refs/heads/main --force --allow-unrelated-histories
+
+                  git lfs install
+                  git lfs track "*.exe"
+                  git add .gitattributes
+
+                  git add ./installers
+                  git commit -m "Automated commit by GitHub Actions"
+                  git push origin HEAD:refs/heads/main

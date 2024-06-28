@@ -546,7 +546,7 @@ const InventoryTreeMenuLocal = () => {
                         </Text>
                     </Label>
                 )}
-                {isChecking?.status && (
+                {isChecking?.status ? (
                     <div style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
                         <Spinner size='extra-tiny' />
                         {isChecking.retry > 0 && (
@@ -559,15 +559,27 @@ const InventoryTreeMenuLocal = () => {
                             </Text>
                         )}
                     </div>
+                ) : (
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
+                        {isChecking?.retry < 0 && (
+                            <Text
+                                size={100}
+                                font='numeric'
+                                style={{ color: 'purple' }}
+                            >
+                                🚫 Failed to get facts
+                            </Text>
+                        )}
+                    </div>
                 )}
-                {isAdopting[path] && (
+                {isAdopting[path] ? (
                     <div style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
                         <RotatingIcon
                             Icon={ArrowSyncFilled}
                             rotationDuration='1300ms'
                             color={tokens.colorCompoundBrandBackground}
                         />
-                        {isAdopting[path].retry > 0 && (
+                        {isAdopting[path]?.retry > 0 && (
                             <Text
                                 size={100}
                                 font='numeric'
@@ -577,7 +589,20 @@ const InventoryTreeMenuLocal = () => {
                             </Text>
                         )}
                     </div>
+                ) : (
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
+                        {isAdopting[path]?.retry < 0 && (
+                            <Text
+                                size={100}
+                                font='numeric'
+                                style={{ color: 'red' }}
+                            >
+                                🚫 Failed to be adopted
+                            </Text>
+                        )}
+                    </div>
                 )}
+
                 {isReleasing[path] && (
                     <RotatingIcon
                         Icon={TriangleRegular}
@@ -593,38 +618,37 @@ const InventoryTreeMenuLocal = () => {
     const fetchDeviceFacts = async (device) => {
         const maxRetries = 3;
         const retryInterval = 10000; // 10 seconds in milliseconds
+        let response;
 
         setIsChecking(device._path, { status: true, retry: 0 });
 
-        for (let attempt = 0; attempt < maxRetries; attempt++) {
-            const response = await getDeviceFacts(device);
+        for (let attempt = 1; attempt <= maxRetries; attempt++) {
+            response = await getDeviceFacts(device);
             if (response.status) {
                 setDeviceFacts(device._path, response.result);
                 resetIsChecking(device._path);
                 return;
             } else {
                 console.log(`${device.address} facts getting error on attempt ${attempt}:`, response);
-                setIsChecking(device._path, { status: true, retry: attempt + 1 });
-                if (attempt < maxRetries) {
-                    await new Promise((resolve) => setTimeout(resolve, retryInterval));
-                } else {
-                    notify(
-                        <Toast>
-                            <ToastTitle>Device Facts Retrieval Failure</ToastTitle>
-                            <ToastBody subtitle='Error Details'>
-                                <Text>
-                                    An error occurred while retrieving the device facts. Please check the device
-                                    configuration and try again.
-                                </Text>
-                                <Text>Error Message: {response.result.message}</Text>
-                            </ToastBody>
-                        </Toast>,
-                        { intent: 'error' }
-                    );
-                    resetIsChecking(device._path);
-                }
+                setIsChecking(device._path, { status: true, retry: attempt });
+                await new Promise((resolve) => setTimeout(resolve, retryInterval));
             }
         }
+
+        setIsChecking(device._path, { status: false, retry: -1 });
+        notify(
+            <Toast>
+                <ToastTitle>Device Facts Retrieval Failure</ToastTitle>
+                <ToastBody subtitle='Error Details'>
+                    <Text>
+                        An error occurred while retrieving the device facts. Please check the device configuration and
+                        try again.
+                    </Text>
+                    <Text>Error Message: {response.result.message}</Text>
+                </ToastBody>
+            </Toast>,
+            { intent: 'error' }
+        );
     };
 
     const getFacts = async (node, rate = 10) => {
@@ -672,7 +696,6 @@ const InventoryTreeMenuLocal = () => {
         setIsAdopting(device._path, { status: true, retry: 0 });
 
         for (let attempt = 1; attempt <= maxRetries; attempt++) {
-
             const result = await adoptDevices(device);
             if (result.status) {
                 setTimeout(async () => {
@@ -694,26 +717,21 @@ const InventoryTreeMenuLocal = () => {
                 resetIsAdopting(device.path, false);
                 return;
             } else {
-                if (attempt < maxRetries) {
-                    setIsAdopting(device._path, { status: true, retry: attempt });
-                    await new Promise((resolve) => setTimeout(resolve, retryInterval)); // Wait before retrying
-                } else {
-                    notify(
-                        <Toast>
-                            <ToastTitle>Device Adoption Failure</ToastTitle>
-                            <ToastBody subtitle='Device Adoption'>
-                                <Text>
-                                    The device could not be adopted into the organization: "{device.organization}".
-                                </Text>
-                            </ToastBody>
-                        </Toast>,
-                        { intent: 'error' }
-                    );
-                }
+                setIsAdopting(device._path, { status: true, retry: attempt });
+                await new Promise((resolve) => setTimeout(resolve, retryInterval)); // Wait before retrying
             }
         }
 
-        resetIsAdopting(device._path, false);
+        setIsAdopting(device._path, { status: false, retry: -1 });
+        notify(
+            <Toast>
+                <ToastTitle>Device Adoption Failure</ToastTitle>
+                <ToastBody subtitle='Device Adoption'>
+                    <Text>The device could not be adopted into the organization: "{device.organization}".</Text>
+                </ToastBody>
+            </Toast>,
+            { intent: 'error' }
+        );
     };
 
     const actionAdoptDevices = async (node, rate = 10) => {

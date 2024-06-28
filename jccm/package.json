@@ -29,7 +29,8 @@
     "node-loader": "^2.0.0",
     "nodemon": "^3.1.0",
     "stream-browserify": "^3.0.0",
-    "style-loader": "^3.0.0"
+    "style-loader": "^3.0.0",
+    "svg-inline-loader": "^0.8.2"
   },
   "keywords": [],
   "author": {
@@ -52,6 +53,7 @@
     "electron-reload": "^2.0.0-alpha.1",
     "electron-squirrel-startup": "^1.0.0",
     "electron-titlebar-windows": "^3.0.0",
+    "express": "^4.19.2",
     "fetch-cookie": "^3.0.1",
     "fs": "^0.0.1-security",
     "immutable": "^4.3.6",

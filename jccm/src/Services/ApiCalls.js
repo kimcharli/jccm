@@ -24,6 +24,8 @@ import {
     msSetCloudOrgs,
 } from './mainStore';
 
+export const callbackUrl = 'http://localhost/callback';
+
 const getCsrfToken = (cookieString) => {
     const regex = /csrftoken.*?=(.*?);/i;
     const match = regex.exec(cookieString + ';'); // Add a semicolon to handle edge cases where csrftoken is the last in the list
@@ -244,6 +246,55 @@ export const acGetCloudInventory = async (orgId) => {
         return { status: 'success', data };
     } catch (error) {
         console.error('apiGetSites failed!', error.message);
+        return { status: 'error', error };
+    }
+};
+
+export const acGetGoogleSSOAuthorizationUrl = async (cloudId, regionName) => {
+    const URL = `login/oauth/google?forward=${encodeURIComponent(callbackUrl)}`;
+
+    await msSetActiveCloud(cloudId);
+    await msSetActiveRegionName(regionName);
+
+    try {
+        const data = await acRequest(URL, 'GET');
+
+        const clientID = data.client_id;
+        const authorizationUrl = data.authorization_url;
+
+        return { status: 'success', authorizationUrl };
+    } catch (error) {
+        console.error('Error retrieving authorization details:', error);
+        return { status: 'error', error };
+    }
+};
+
+export const acLoginUserGoogleSSO = async (code) => {
+    try {
+        const data = await acRequest('login/oauth/google', 'POST', { code });
+
+        const regions = await msGetRegions();
+        const activeRegionName = await msGetActiveRegionName();
+        const activeRegion = regions[activeRegionName];
+        
+        const url = activeRegion.apiBase;
+        const cookies = await new Promise((resolve, reject) => {
+            cookieJar.getCookies(url, (err, cookies) => {
+                if (err) {
+                    reject(err);
+                } else {
+                    resolve(cookies.map((cookie) => cookie.toString()).join('; '));
+                }
+            });
+        });
+
+        await msSetCookies(cookies);
+
+        const selfData = await acUserSelf();
+        return selfData;
+        
+    } catch (error) {
+        console.error('User Google SSO login failed!', error.message);
         return { status: 'error', error };
     }
 };

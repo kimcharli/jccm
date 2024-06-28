@@ -63,12 +63,10 @@ const ArrowCircleUp = bundleIcon(ArrowCircleUpFilled, ArrowCircleUpRegular);
 const Send = bundleIcon(SendFilled, SendRegular);
 const ShareAndroid = bundleIcon(ShareAndroidFilled, ShareAndroidRegular);
 
-
 const isValidPort = (port) => {
     const portNum = parseInt(port, 10);
     return portNum >= 1 && portNum <= 65535;
 };
-
 
 const InventoryLocalEditForm = ({ isOpen, onClose, title, importedInventory }) => {
     if (!isOpen) return null;
@@ -124,9 +122,11 @@ const InventoryLocalEditForm = ({ isOpen, onClose, title, importedInventory }) =
 
     const onDataChange = (params) => {
         const validateRowData = (data) => {
-            return data.every((row) => Object.values(row).every((value) => value !== '' && value !== null));
+            const requiredFields = ['organization', 'site', 'address', 'port', 'password'];
+            return data.every((row) => requiredFields.every((field) => row[field] !== '' && row[field] !== null));
         };
 
+        console.log('rowData', rowData);
         const allFieldsValid = validateRowData(rowData);
         setIsDataModified(allFieldsValid);
     };
@@ -185,7 +185,7 @@ const InventoryLocalEditForm = ({ isOpen, onClose, title, importedInventory }) =
 
     const onSave = async () => {
         setInventory(rowData);
-        await electronAPI.saSetLocalInventory({inventory: rowData});
+        await electronAPI.saSetLocalInventory({ inventory: rowData });
         setTimeout(() => {
             onClose();
         }, 300);

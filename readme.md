@@ -7,12 +7,14 @@ Juniper Cloud Connection Manager (JCCM) is a standalone application designed to 
 - **Automated Device Adoption:** Simplifies the process of adopting Juniper network devices to Juniper cloud services.
 - **User Login and Authentication:** Secure user login process to ensure authorized access.
 - **Import Inventory:** Import and manage your network device inventory with ease.
-- **Get Facts:** Retrieve detailed information about your network devices, including configurations, status, and more.
+- **Get Facts:** Retrieve detailed information about your network devices, including hardware model, hostname, serial number, status, and more.
 - **Adopt Devices:** Seamlessly adopt devices to desired cloud services with a few clicks.
 - **Release Devices:** Easily release devices from cloud services when needed, ensuring flexible management.
 - **Integrated SSH Terminal:** Optionally open an SSH terminal within the same window for direct device management.
-- **User-Friendly Interface:** Intuitive UI designed to enhance user experience and simplify network management tasks.
-- **Multi-Platform Support:** Available for both Intel-based and ARM-based macOS systems.
+- **User-Friendly Interface:** Intuitive UI designed to enhance user experience and simplify network cloud attachment tasks.
+- **Multi-Platform Support:** Available for both Intel-based and ARM-based macOS systems and Intel-based Windows systems.
+- **Social Login Support:** Available for Google Social SSO Login in the tech preview stage.
+
 
 ## Demo
 
@@ -82,7 +84,7 @@ Below is a visual example of how the inventory file should look:
 
 2. **Import Inventory:**
    - Navigate to the "Inventory" section.
-   - Click on "Import Inventory" and upload your device inventory file. Supported file formats include CSV and JSON.
+   - Click on "Import Inventory" and upload your device inventory file. Supported excel file formats - xlsx.
 
 3. **Get Facts:**
    - Select the devices from your inventory.
@@ -105,8 +107,6 @@ Below is a visual example of how the inventory file should look:
 Currently supported platforms:
 - macOS (Intel x86_64 and ARM64)
 - Windows (Intel x86_64)
-
-Linux versions will be available in the near future.
 
 ## License
 

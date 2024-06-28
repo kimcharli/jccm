@@ -4,8 +4,14 @@ import { contextBridge, ipcRenderer } from 'electron';
 contextBridge.exposeInMainWorld('electronAPI', {
     saFetchAvailableClouds: () => ipcRenderer.invoke('saFetchAvailableClouds'),
     saLookupApiEndpoint: (args) => ipcRenderer.invoke('saLookupApiEndpoint', args),
+
     saLoginUser: (args) => ipcRenderer.invoke('saLoginUser', args),
     saLogoutUser: () => ipcRenderer.invoke('saLogoutUser'),
+
+    saGetGoogleSSOAuthCode: (args) => ipcRenderer.invoke('saGetGoogleSSOAuthCode', args),
+    saGoogleSSOAuthCodeReceived: (callback) => ipcRenderer.on('saGoogleSSOAuthCodeReceived', (event, code) => callback(code)),
+    saLoginUserGoogleSSO: (args) => ipcRenderer.invoke('saLoginUserGoogleSSO', args),
+
     saWhoamiUser: () => ipcRenderer.invoke('saWhoamiUser'),
     saSetThemeUser: (args) => ipcRenderer.invoke('saSetThemeUser', args),
     saGetCloudInventory: () => ipcRenderer.invoke('saGetCloudInventory'),

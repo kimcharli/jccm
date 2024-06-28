@@ -1,6 +1,9 @@
-import { ipcMain } from 'electron';
+import { ipcMain, BrowserWindow, session, screen } from 'electron';
 import { getCloudInfoMinVersion } from '../config';
 import { Client } from 'ssh2';
+
+import { mainWindow } from '../main.js';
+
 import {
     msGetActiveCloud,
     msGetActiveRegionName,
@@ -29,7 +32,10 @@ import {
     acGetCloudSites,
     acGetCloudInventory,
     acRequest,
+    acGetGoogleSSOAuthorizationUrl,
+    acLoginUserGoogleSSO,
 } from './ApiCalls';
+
 import { CloudInfo } from '../config';
 import { commitJunosSetConfig, executeJunosCommand, getDeviceFacts } from './Device';
 const sshSessions = {};
@@ -456,6 +462,97 @@ export const setupApiHandlers = () => {
             console.error('saGetDeviceFacts: Junos command execution failed!', args, error);
 
             return { facts: false, reply: error };
+        }
+    });
+
+    ipcMain.handle('saGetGoogleSSOAuthCode', async (event, args) => {
+        console.log('main: saGetGoogleSSOAuthCode');
+
+        const cloudId = args.cloud;
+        const regionName = args.region;
+
+        if (!cloudId || !regionName) {
+            return { login: 'error', error: 'Missing required fields' };
+        }
+
+        const response = await acGetGoogleSSOAuthorizationUrl(cloudId, regionName);
+
+        if (response.status === 'success') {
+            const authorizationUrl = response.authorizationUrl;
+            console.log('saGetGoogleSSOAuthCode gets authorization url successfully');
+
+            const { width, height } = screen.getPrimaryDisplay().workAreaSize;
+
+            // Open the authorization URL in a new BrowserWindow
+            const authWindow = new BrowserWindow({
+                width: Math.floor(width * 0.80), // 80% of the screen width
+                height: Math.floor(height * 0.70), // 70% of the screen height
+                webPreferences: {
+                    nodeIntegration: false,
+                    contextIsolation: true,
+                    enableRemoteModule: false,
+                },
+            });
+
+            authWindow.loadURL(authorizationUrl);
+
+            // Intercept the HTTP request to the callback URL
+            session.defaultSession.webRequest.onBeforeRequest(
+                { urls: ['http://localhost/callback*'] },
+                (details, callback) => {
+                    const url = new URL(details.url);
+                    const authCode = url.searchParams.get('code');
+
+                    if (authCode) {
+                        // Complete the request processing
+                        callback({ cancel: false });
+
+                        // Load a success message and close the auth window after the request processing is done
+                        setImmediate(() => {
+                            // a built-in function in Node.js that schedules a callback to be executed immediately after I/O events
+                            authWindow.loadURL('data:text/html,Authentication successful! You can close this window.');
+                            authWindow.close();
+
+                            // Send the authorization code to the renderer process
+                            mainWindow.webContents.send('saGoogleSSOAuthCodeReceived', authCode);
+                        });
+                    } else {
+                        callback({ cancel: false });
+                    }
+                }
+            );
+
+            return { login: true };
+        } else {
+            console.log('saGetGoogleSSOAuthCode failed to get authorization url: ', response);
+            return { login: false, error: response.error };
+        }
+    });
+
+    ipcMain.handle('saLoginUserGoogleSSO', async (event, args) => {
+        console.log('main: saLoginUserGoogleSSO');
+
+        const authCode = args.authCode;
+
+        if (!authCode) return { login: 'error', error: 'Missing required fields' };
+
+        const response = await acLoginUserGoogleSSO(authCode);
+
+        if (response.status === 'success') {
+            const cloudId = await msGetActiveCloud();
+            const regionName = await msGetActiveRegionName();
+            const cloudDescription = CloudInfo[cloudId].description;
+
+            const service = `${cloudDescription}/${regionName}`;
+            const theme = await msGetTheme();
+            const { inventory, isFilterApplied } = await serverGetCloudInventory();
+
+            return {
+                login: true,
+                user: { ...response.data, service, theme, cloudDescription, regionName },
+                inventory,
+                isFilterApplied,
+            };
         }
     });
 };

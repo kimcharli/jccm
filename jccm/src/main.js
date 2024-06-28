@@ -7,9 +7,12 @@ if (require('electron-squirrel-startup')) {
     app.quit();
 }
 
+// Initialize mainWindow as undefined
+export let mainWindow;
+
 const createWindow = () => {
     const { width, height } = screen.getPrimaryDisplay().workAreaSize;
-    const mainWindow = new BrowserWindow({
+    mainWindow = new BrowserWindow({
         width: Math.floor(width * 0.95), // 80% of the screen width
         height: Math.floor(height * 0.85), // 70% of the screen height
         // frame: false,

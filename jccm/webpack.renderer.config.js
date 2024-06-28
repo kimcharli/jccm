@@ -3,6 +3,11 @@ const rules = require('./webpack.rules');
 const path = require('path');
 
 rules.push({
+    test: /\.svg$/,
+    use: 'svg-inline-loader',
+});
+
+rules.push({
     test: /\.css$/,
     use: [{ loader: 'style-loader' }, { loader: 'css-loader' }],
 });

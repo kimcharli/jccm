@@ -66,7 +66,7 @@ jobs:
                   echo "GITHUB_REPOSITORY=${{ github.repository }}"
                   git config --global user.email "${{ github.actor }}@users.noreply.github.com"
                   git config --global user.name "${{ github.actor }}"
-                  git remote set-url origin https://${{ secrets.ALL }}@github.com/${{ github.repository }}.git
+                  git remote set-url origin https://${{ github.actor }}:${{ secrets.ALL }}@github.com/${{ github.repository }}.git
                   git pull origin refs/heads/main --force --allow-unrelated-histories
 
                   git lfs install
@@ -115,7 +115,7 @@ jobs:
                   Write-Output "GITHUB_REPOSITORY=${{ github.repository }}"
                   git config --global user.email "${{ github.actor }}@users.noreply.github.com"
                   git config --global user.name "${{ github.actor }}"
-                  git remote set-url origin https://${{ secrets.ALL }}@github.com/${{ github.repository }}.git
+                  git remote set-url origin https://${{ github.actor }}:${{ secrets.ALL }}@github.com/${{ github.repository }}.git
                   git pull origin refs/heads/main --force --allow-unrelated-histories
 
                   git lfs install

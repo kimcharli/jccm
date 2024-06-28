@@ -96,6 +96,7 @@ module.exports = {
         {
             name: '@electron-forge/plugin-webpack',
             config: {
+                loggerPort: 9001, // conflicts with zscaler client using tcp port 9000
                 mainConfig: './webpack.main.config.js',
                 renderer: {
                     config: './webpack.renderer.config.js',

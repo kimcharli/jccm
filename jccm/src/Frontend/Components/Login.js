@@ -38,6 +38,8 @@ import _ from 'lodash';
 import { useMessageBar } from '../Common/MessageBarContext';
 import useStore from '../Common/StateStore';
 import * as Constants from '../Common/CommonVariables';
+import GoogleIcon from './GoogleIcon';
+import eventBus from '../Common/eventBus';
 
 const Eye = bundleIcon(EyeRegular, EyeRegular);
 const EyeOff = bundleIcon(EyeOffRegular, EyeOffRegular);
@@ -84,6 +86,8 @@ export const Login = ({ isOpen, onClose }) => {
     const loginButtonRef = useRef(null);
     const passcodeInputRef = useRef(null);
 
+    const [isGoogleSSOLogin, setIsGoogleSSOLogin] = useState(false);
+
     const togglePasswordVisibility = () => {
         setPasswordVisible(!passwordVisible);
 
@@ -129,6 +133,7 @@ export const Login = ({ isOpen, onClose }) => {
         setRegions([]);
         setOpenRegionSelect(false);
         setOpenPasscodeInput(false);
+        setIsGoogleSSOLogin(false);
     };
 
     const onKeyDownForLogin = (e) => {
@@ -151,16 +156,24 @@ export const Login = ({ isOpen, onClose }) => {
         setOpenRegionSelect(false);
         setRegion(region);
 
-        setLoginButtonStatus('Login...');
-        const response = await requestUserLogin(cloud, region, email, password);
-        await processLoginResponse(response);
+        if (!isGoogleSSOLogin) {
+            setLoginButtonStatus('Login...');
+            const response = await requestUserLogin(cloud, region, email, password);
+            await processLoginResponse(response);
+        } else {
+            await startGoogleSSOAuth(cloud, region);
+            await electronAPI.saGoogleSSOAuthCodeReceived(async (authCode) => {
+                const response = await requestGoogleSSOUserLogin(authCode);
+                await processGoogleSSOLoginResponse(response);
+            });
+        }
     };
 
     const onPasscodeInput = async () => {
         if (passcode.length === 0) return;
         setOpenPasscodeInput(false);
         setPasswordVisible(false);
-        
+
         setLoginButtonStatus('Login...');
         const response = await requestUserLogin(cloud, region, email, null, passcode);
         await processLoginResponse(response);
@@ -204,10 +217,40 @@ export const Login = ({ isOpen, onClose }) => {
         }
     };
 
+    const processLoginResponse = async (response) => {
+        if (response.status === 'success') {
+            const data = response.data;
+
+            setUser(data.user);
+
+            await new Promise((resolve) => setTimeout(resolve, 1500));
+            setLoginButtonStatus('Logged in');
+            console.log('User logged in');
+            showMessageBar({ message: 'Login successful!', intent: 'success' });
+
+            await new Promise((resolve) => setTimeout(resolve, 1000));
+
+            resetAll();
+
+            setIsUserLoggedIn(true);
+            setCurrentActiveThemeName(Constants.getActiveThemeName(data.user.theme));
+            setCloudInventory(data.inventory);
+            setCloudInventoryFilterApplied(data.isFilterApplied);
+
+            onClose();
+        } else if (response.status === 'two_factor') {
+            setPasscode('');
+            setOpenPasscodeInput(true);
+        } else {
+            await new Promise((resolve) => setTimeout(resolve, 1000));
+            setLoginButtonStatus('Login');
+            showMessageBar({ message: 'Login failed!', intent: 'error' });
+        }
+    };
+
     const onLoginButton = async (cloud, email, password) => {
-        console.log('onLoginButton cloud and email', cloud, email);
         if (!cloud || !email || !password) {
-            console.log('onLoginButton missing inputs');
+            console.log('Login Button Clicked! - But missing inputs');
             return;
         }
 
@@ -238,7 +281,24 @@ export const Login = ({ isOpen, onClose }) => {
         }
     };
 
-    const processLoginResponse = async (response) => {
+    const requestGoogleSSOUserLogin = async (authCode) => {
+        try {
+            const data = await electronAPI.saLoginUserGoogleSSO({ authCode });
+
+            if (data.login) {
+                console.log('Google SSO Login successful!');
+                return { status: 'success', message: 'Google SSO Login successful!', data: data };
+            } else {
+                console.log('Google SSO Login failed!');
+                return { status: 'error', message: 'Google SSO Login failed!' };
+            }
+        } catch (error) {
+            console.error('Google SSO Login failed!', error);
+            return { status: 'error', message: 'Google SSO Login failed!', error: error };
+        }
+    };
+
+    const processGoogleSSOLoginResponse = async (response) => {
         if (response.status === 'success') {
             const data = response.data;
 
@@ -259,14 +319,77 @@ export const Login = ({ isOpen, onClose }) => {
             setCloudInventoryFilterApplied(data.isFilterApplied);
 
             onClose();
-        } else if (response.status === 'two_factor') {
-            setPasscode('');
-            setOpenPasscodeInput(true);
         } else {
             await new Promise((resolve) => setTimeout(resolve, 1000));
             setLoginButtonStatus('Login');
             showMessageBar({ message: 'Login failed!', intent: 'error' });
         }
+    };
+
+    const onGoogleSSOLoginButton = async (cloud, email) => {
+        if (!cloud || !email) {
+            console.error('Google SSO Login missing inputs');
+            return;
+        }
+
+        setPasswordVisible(false);
+
+        setLoginButtonStatus('Login...');
+
+        const lookupResult = await requestUserLookup(cloud, email);
+
+        if (lookupResult?.status === 'success') {
+            if (lookupResult.regions.length === 1) {
+                const region = lookupResult.regions[0];
+                setRegion(region);
+
+                await startGoogleSSOAuth(cloud, region);
+                await electronAPI.saGoogleSSOAuthCodeReceived(async (authCode) => {
+
+                    const response = await requestGoogleSSOUserLogin(authCode);
+                    await processGoogleSSOLoginResponse(response);
+                });
+
+            } else {
+                setRegions(lookupResult.regions); // Assume regions are returned in the lookup result
+                setOpenRegionSelect(true);
+            }
+        } else if (lookupResult?.status === 'notfound') {
+            console.log('User not found');
+            showMessageBar({ message: 'User not found or error occurred.', intent: 'error' });
+            setLoginButtonStatus('Login');
+        } else if (lookupResult?.status === 'error') {
+            console.error('Error during lookup:', lookupResult.error);
+            showMessageBar({ message: 'User not found or error occurred.', intent: 'error' });
+            setLoginButtonStatus('Login');
+        }
+    };
+
+    const startGoogleSSOAuth = async (cloud, region) => {
+        cloudList.forEach((item) => {
+            if (item.id === cloud) setCloudDescription(item.description);
+        });
+        setCloudRegionName(region);
+
+        try {
+            const data = await electronAPI.saGetGoogleSSOAuthCode({ cloud, region });
+
+            if (data.login) {
+                console.log('SSO Login asked successful!');
+                return { status: 'success', message: 'SSO Login ask successful!' };
+            } else {
+                console.log('SSO Login ask failed!');
+                return { status: 'error', message: 'SSO Login ask failed!', error: data.error };
+            }
+        } catch (error) {
+            console.error('SSO Login ask failed!', error);
+            return { status: 'error', message: 'SSO Login ask failed!', error };
+        }
+    };
+
+    const onSignInGoogle = async () => {
+        setIsGoogleSSOLogin(true);
+        await onGoogleSSOLoginButton(cloud, email);
     };
 
     useEffect(() => {
@@ -595,6 +718,17 @@ export const Login = ({ isOpen, onClose }) => {
                         }
                     >
                         {loginButtonStatus}
+                    </Button>
+                    <Label>- or -</Label>
+                    <Button
+                        icon={<GoogleIcon disabled={emailValidationState !== 'success'} />}
+                        shape='rounded'
+                        appearance='subtle'
+                        size='small'
+                        disabled={emailValidationState !== 'success'}
+                        onClick={onSignInGoogle}
+                    >
+                        Sign in with Google
                     </Button>
                 </div>
             </DialogSurface>

@@ -262,12 +262,12 @@ export const InventorySearchControl = ({ subnets, startCallback, endCallback, on
 
                 <Tooltip
                     content={
-                        <Text align='start'>
-                            Select search rate ({minRate}-{maxRate} per second). Please ensure there are no security
-                            issues when searching at a high rate.
+                        <Text align='start' wrap size={100}>
+                            Select search rate ({minRate}-{maxRate} per second). 
+                            Please ensure there are no security issues when searching at a high rate.
                         </Text>
                     }
-                    positioning='above'
+                    positioning='below'
                 >
                     <div
                         style={{

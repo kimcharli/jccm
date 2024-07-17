@@ -623,7 +623,7 @@ const InventoryTreeMenuLocal = () => {
         setIsChecking(device._path, { status: true, retry: 0 });
 
         for (let attempt = 1; attempt <= maxRetries; attempt++) {
-            response = await getDeviceFacts(device);
+            response = await getDeviceFacts({...device, timeout: 5000});
             if (response.status) {
                 setDeviceFacts(device._path, response.result);
                 resetIsChecking(device._path);

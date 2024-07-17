@@ -27,45 +27,25 @@ const { electronAPI } = window;
 
 import {
     PersonAvailableRegular,
-    BoxCheckmarkRegular,
-    PersonRunningRegular,
     ColorRegular,
     ColorFilled,
-    GlanceHorizontalRegular,
-    EditSettingsRegular,
-    ArrowEnterRegular,
-    ArrowEnterFilled,
-    ArrowExitFilled,
-    ArrowExitRegular,
     CubeTreeRegular,
     CubeTreeFilled,
     ArrowUploadFilled,
     ArrowUploadRegular,
     ArrowDownloadFilled,
     ArrowDownloadRegular,
-    BoxMultipleSearchFilled,
     BoxMultipleSearchRegular,
-    ArrowBetweenUpFilled,
-    ArrowBetweenUpRegular,
-    ArrowBetweenDownFilled,
-    ArrowBetweenDownRegular,
-    ClipboardCodeFilled,
     ClipboardCodeRegular,
     OrganizationFilled,
     OrganizationRegular,
-    DarkThemeFilled,
     DarkThemeRegular,
     PersonQuestionMarkFilled,
     PersonQuestionMarkRegular,
-    TableEditFilled,
-    TableEditRegular,
-    EditFilled,
-    EditRegular,
     CloudAddFilled,
     CloudAddRegular,
     LayoutCellFourFocusBottomLeftFilled,
     LayoutCellFourRegular,
-    BoxArrowUpFilled,
     BoxArrowUpRegular,
     BoxMultipleRegular,
     BoxRegular,
@@ -73,31 +53,22 @@ import {
     ClipboardTaskRegular,
     MoreHorizontalFilled,
     MoreHorizontalRegular,
-    TableAddRegular,
-    TableRegular,
     TableSimpleRegular,
     TableSimpleCheckmarkRegular,
     AppsAddInRegular,
     AppsAddInFilled,
     TableMoveBelowFilled,
     TableMoveBelowRegular,
-    TableMoveAboveFilled,
-    TableMoveAboveRegular,
     PersonCircleRegular,
     PersonCircleFilled,
     PersonDeleteRegular,
     SettingsRegular,
     SettingsFilled,
-    CodeCircleFilled,
-    CodeCircleRegular,
-    CircleRegular,
-    CircleHintHalfVerticalRegular,
-    CircleHalfFillRegular,
-    CircleShadowRegular,
-    CircleShadowFilled,
     BoxDismissRegular,
+    SearchSparkleRegular,
     bundleIcon,
 } from '@fluentui/react-icons';
+
 import { format } from 'date-fns';
 
 import Login from '../Components/Login';
@@ -108,7 +79,7 @@ import { useNotify } from '../Common/NotificationContext';
 import { copyToClipboard } from '../Common/CommonVariables';
 import InventoryLocalEditForm from './InventoryLocalEditForm';
 import InventoryLocalImportForm from './InventoryLocalImportForm';
-import InventoryAdoptCard from './InventoryAdoptCard';
+import InventorySearchCard from './InventorySearch/InventorySearch';
 
 const ColorIcon = bundleIcon(ColorFilled, ColorRegular);
 const LoginUserIcon = bundleIcon(PersonAvailableRegular, PersonCircleRegular);
@@ -122,6 +93,7 @@ const ImportInventoryIcon = bundleIcon(AppsAddInFilled, AppsAddInRegular);
 const ExportInventoryIcon = bundleIcon(TableMoveBelowFilled, TableMoveBelowRegular);
 const AdoptDeviceConfigIcon = bundleIcon(ClipboardCodeRegular, ClipboardRegular);
 const Organization = bundleIcon(OrganizationFilled, OrganizationRegular);
+
 const RotatedDarkThemeFilled = (props) => (
     <DarkThemeRegular
         style={{ transform: 'rotate(180deg)' }}
@@ -160,13 +132,12 @@ export default () => {
 
     const [isInventoryEditCardVisible, setIsInventoryEditCardVisible] = useState(false);
     const [isInventoryImportCardVisible, setIsInventoryImportCardVisible] = useState(false);
-    const [isDeviceAdoptCardVisible, setIsDeviceAdoptCardVisible] = useState(false);
-    const [isDeviceAssignCardVisible, setIsDeviceAssignCardVisible] = useState(false);
+    const [isDeviceSearchCardVisible, setIsDeviceSearchCardVisible] = useState(false);
     const [importedInventory, setImportedInventory] = useState([]);
     const fileInputRef = useRef(null);
 
     const orgs = isUserLoggedIn
-        ? user.privileges.filter((item) => item.scope === 'org').map((item) => ({ name: item.name, id: item.org_id }))
+        ? user?.privileges?.filter((item) => item.scope === 'org').map((item) => ({ name: item.name, id: item.org_id }))
         : [];
 
     const handleChangeTheme = (event, data) => {
@@ -268,10 +239,10 @@ export default () => {
             port: 'port',
             username: 'username',
             password: 'password',
-            'facts.serialNumber': 'serial number',
             'facts.hardwareModel': 'hardware model',
             'facts.osName': 'os name',
             'facts.osVersion': 'os version',
+            'facts.serialNumber': 'serial number',
             'facts.hostName': 'host name',
         };
 
@@ -318,8 +289,9 @@ export default () => {
         utils.book_append_sheet(wb, ws, 'Local Inventory');
 
         // Write the workbook to a file
-        const timestamp = new Date().toISOString().replace(/[\W_]+/g, '');
-        const fileName = `local_inventory_export_${timestamp}.xlsx`;
+        const dateStr = new Date().toISOString().slice(0, 10); // format YYYY-MM-DD
+        const fileName = `local-inventory-${dateStr}.xlsx`;
+
         writeFile(wb, fileName);
 
         // Notify the user of the success
@@ -402,36 +374,22 @@ export default () => {
                             >
                                 Export
                             </MenuItem>
-                            {/* <MenuItem icon={<DiscoverInventoryIcon />}>Discover</MenuItem> */}
                         </MenuList>
                     </MenuPopover>
                 </Menu>
                 <Menu>
                     <MenuTrigger>
-                        {/* <Tab
-                            value='actionsTab'
-                            disabled={!isUserLoggedIn || !cloudInventory || cloudInventory.length === 0}
-                        >
-                            Actions
-                        </Tab> */}
+                        <Tab value='toolsTab'>Tools</Tab>
                     </MenuTrigger>
                     <MenuPopover>
                         <MenuList>
                             <MenuItem
                                 onClick={() => {
-                                    setIsDeviceAdoptCardVisible(true);
+                                    setIsDeviceSearchCardVisible(true);
                                 }}
-                                icon={<AdoptDeviceIcon style={{ fontSize: '16px' }} />}
+                                icon={<DiscoverInventoryIcon style={{ fontSize: '20px' }} />}
                             >
-                                Adopt Devices
-                            </MenuItem>
-                            <MenuItem
-                                onClick={() => {
-                                    onFileImport();
-                                }}
-                                icon={<ReleaseDeviceIcon style={{ fontSize: '16px' }} />}
-                            >
-                                Release Devices
+                                Search
                             </MenuItem>
                         </MenuList>
                     </MenuPopover>
@@ -460,7 +418,7 @@ export default () => {
                             <MenuGroup>
                                 <MenuGroupHeader>Select Organization</MenuGroupHeader>
                                 <MenuDivider />
-                                {orgs.map((org) => (
+                                {orgs?.map((org) => (
                                     <MenuItem
                                         key={org.id}
                                         onClick={() => {
@@ -548,12 +506,12 @@ export default () => {
                         importedInventory={inventory}
                     />
                 )}
-                {isDeviceAdoptCardVisible && (
-                    <InventoryAdoptCard
+                {isDeviceSearchCardVisible && (
+                    <InventorySearchCard
                         title={<Text size={500}>Edit Inventory</Text>}
-                        isOpen={isDeviceAdoptCardVisible}
+                        isOpen={isDeviceSearchCardVisible}
                         onClose={async () => {
-                            setIsDeviceAdoptCardVisible(false);
+                            setIsDeviceSearchCardVisible(false);
                         }}
                         importedInventory={inventory}
                     />

@@ -38,8 +38,8 @@ export const executeJunosCommand = async (device, command) => {
 };
 
 export const getDeviceFacts = async (device) => {
-    const { address, port, username, password } = device;
-    const response = await electronAPI.saGetDeviceFacts({ address, port, username, password });
+    const { address, port, username, password, timeout } = device;
+    const response = await electronAPI.saGetDeviceFacts({ address, port, username, password, timeout });
 
     if (response.facts) {
         return { status: true, result: response.reply };

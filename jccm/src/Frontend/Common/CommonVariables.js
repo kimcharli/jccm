@@ -19,8 +19,8 @@ export const LoginCardHeight = 600;
 export const sharedInventoryWindowWidth = 1000;
 export const sharedInventoryWindowHeight = 500;
 
-export const AdoptInventoryWindowWidth = 1000;
-export const AdoptInventoryWindowHeight = 500;
+export const InventorySearchWindowWidth = 1000;
+export const InventorySearchWindowHeight = 700;
 
 export const Themes = {
     webLightTheme: { theme: webLightTheme, description: 'Web Light' },

@@ -11,6 +11,7 @@ const sessionKey = 'session';
 const cloudInventoryKey = 'cloudInventory';
 const localInventoryKey = 'localInventory';
 const deviceFactsKey = 'deviceFacts';
+const subnetsKey = 'subnets';
 
 // Function to get the session
 const getSession = async () => {
@@ -28,6 +29,7 @@ const getSession = async () => {
             theme: getActiveThemeName('default'),
             cloudOrgs: {},
             orgFilter: {},
+            subnets: [],
         };
         await db.insert(session);
     }
@@ -181,6 +183,22 @@ export const msSaveDeviceFacts = async (facts) => {
 
 export const msLoadDeviceFacts = async () => {
     const doc = await db.findOne({ _id: deviceFactsKey });
+    if (doc && typeof doc.data === 'string') {
+        return decodeFromBase64(doc.data);
+    }
+    return [];
+};
+
+export const msSaveSubnets = async (subnets) => {
+    console.log('Saving subnets: ', subnets);
+    const encodedSubnets = encodeToBase64(subnets);
+    console.log('Saving encodedSubnets: ', encodedSubnets);
+
+    await db.update({ _id: subnetsKey }, { _id: subnetsKey, data: encodedSubnets }, { upsert: true });
+};
+
+export const msLoadSubnets = async () => {
+    const doc = await db.findOne({ _id: subnetsKey });
     if (doc && typeof doc.data === 'string') {
         return decodeFromBase64(doc.data);
     }

@@ -1,6 +1,26 @@
 import { NodeSSH } from 'node-ssh';
 import xml2js from 'xml2js';
 
+const StatusMessages = {
+    SUCCESS: 'success',
+    AUTHENTICATION_FAILED: 'authentication failed',
+    UNREACHABLE: 'unreachable',
+    TIMEOUT: 'timeout',
+    COMMIT_FAILED: 'commit_failed',
+    NO_RPC_REPLY: 'no_rpc_reply',
+    INACTIVITY_TIMEOUT: 'inactivity_timeout',
+};
+
+const ErrorMessages = {
+    AUTHENTICATION_FAILED: 'Authentication failed. Check your username and password.',
+    TIMEOUT: 'Connection timed out',
+    UNREACHABLE: 'Unable to connect to host',
+    COMMIT_ERROR: 'Commit error',
+    COMMIT_NO_SUCCESS: 'Commit did not return success',
+    NO_RPC_REPLY: 'No RPC reply found in the response',
+    INACTIVITY_TIMEOUT: 'Session closed due to inactivity',
+};
+
 export const executeJunosCommand = async (address, port, username, password, cmd, timeout = 5000) => {
     const command = `${cmd} | no-more`;
     const ssh = new NodeSSH();
@@ -21,31 +41,33 @@ export const executeJunosCommand = async (address, port, username, password, cmd
         }
 
         return {
-            status: 'success',
+            status: StatusMessages.SUCCESS,
             message: 'Command executed successfully',
             data: result.stdout,
         };
     } catch (error) {
-        let message = 'Unable to connect to host';
-        let status = 'unreachable';
+        let message = ErrorMessages.UNREACHABLE;
+        let status = StatusMessages.UNREACHABLE;
+
         if (error.message.includes('All configured authentication methods failed')) {
-            message = 'Authentication failed. Check your username and password.';
-            status = 'auth_failed';
+            message = ErrorMessages.AUTHENTICATION_FAILED;
+            status = StatusMessages.AUTHENTICATION_FAILED;
         } else if (error.message.includes('Timed out while waiting for handshake')) {
-            message = 'Connection timed out';
-            status = 'timeout';
+            message = ErrorMessages.TIMEOUT;
+            status = StatusMessages.TIMEOUT;
         }
-        console.error('executeJunosCommand: error:', error);
+
+        // console.error('executeJunosCommand: error:', error);
         throw { status, message, data: error.message };
     } finally {
         ssh.dispose();
     }
 };
 
-export const getDeviceFacts = async (address, port, username, password) => {
+export const getDeviceFacts = async (address, port, username, password, timeout) => {
     const command = 'show system information | display xml';
 
-    const result = await executeJunosCommand(address, port, username, password, command);
+    const result = await executeJunosCommand(address, port, username, password, command, timeout);
 
     if (result.status === 'success') {
         try {
@@ -59,6 +81,7 @@ export const getDeviceFacts = async (address, port, username, password) => {
                 osVersion: systemInformation['os-version'][0],
                 serialNumber: systemInformation['serial-number'][0],
                 hostName: systemInformation['host-name'][0],
+                status: 'success'
             };
 
             return deviceFacts;
@@ -81,7 +104,6 @@ export const commitJunosSetConfig = async (
     timeout = 60000,
     inactivityTimeout = 30000
 ) => {
-    // const command = `edit exclusive private\nload set terminal\n${config}\n\x04commit | display xml\nexit\n\n\n`;
     const command = `edit exclusive private\n${config}\ncommit | display xml\nexit\n\n\n`;
 
     let inactivityTimer;
@@ -108,7 +130,7 @@ export const commitJunosSetConfig = async (
             inactivityTimer = setTimeout(() => {
                 shell.end();
                 ssh.dispose();
-                return new Error('Session closed due to inactivity');
+                throw new Error(ErrorMessages.INACTIVITY_TIMEOUT);
             }, inactivityTimeout);
         };
 
@@ -153,8 +175,8 @@ export const commitJunosSetConfig = async (
                 if (error) {
                     const errorMessage = error[0].message[0].trim();
                     throw {
-                        status: 'commit_failed',
-                        message: 'Commit error',
+                        status: StatusMessages.COMMIT_FAILED,
+                        message: ErrorMessages.COMMIT_ERROR,
                         data: errorMessage,
                     };
                 }
@@ -162,40 +184,42 @@ export const commitJunosSetConfig = async (
 
             if (rpcReply[0].includes('<commit-success/>')) {
                 return {
-                    status: 'success',
+                    status: StatusMessages.SUCCESS,
                     message: 'Configuration committed successfully',
                     data: rpcReply[0],
                 };
             } else {
                 throw {
-                    status: 'commit_failed',
-                    message: 'Commit did not return success',
+                    status: StatusMessages.COMMIT_FAILED,
+                    message: ErrorMessages.COMMIT_NO_SUCCESS,
                     data: rpcReply[0],
                 };
             }
         } else {
             throw {
-                status: 'no_rpc_reply',
-                message: 'No RPC reply found in the response',
+                status: StatusMessages.NO_RPC_REPLY,
+                message: ErrorMessages.NO_RPC_REPLY,
                 data: data,
             };
         }
     } catch (error) {
-        let message = 'Unable to connect to host';
-        let status = 'unreachable';
+        let message = ErrorMessages.UNREACHABLE;
+        let status = StatusMessages.UNREACHABLE;
+
         if (error.message.includes('All configured authentication methods failed')) {
-            message = 'Authentication failed. Check your username and password.';
-            status = 'auth_failed';
+            message = ErrorMessages.AUTHENTICATION_FAILED;
+            status = StatusMessages.AUTHENTICATION_FAILED;
         } else if (error.message.includes('Timed out while waiting for handshake')) {
-            message = 'Connection timed out';
-            status = 'timeout';
-        }
-        if (error.message === 'Session closed due to inactivity') {
-            status = 'inactivity_timeout';
-            message = 'Session closed due to inactivity';
+            message = ErrorMessages.TIMEOUT;
+            status = StatusMessages.TIMEOUT;
+        } else if (error.message === ErrorMessages.INACTIVITY_TIMEOUT) {
+            status = StatusMessages.INACTIVITY_TIMEOUT;
+            message = ErrorMessages.INACTIVITY_TIMEOUT;
         } else if (error.status) {
             throw error; // Re-throw custom errors
         }
+
+        console.error('commitJunosSetConfig: error:', error);
         throw { status, message };
     } finally {
         if (inactivityTimer) {

@@ -1,3 +1,5 @@
+const webpack = require('webpack');
+
 module.exports = {
     /**
      * This is the main entry point for your application, it's the first file
@@ -14,10 +16,17 @@ module.exports = {
         fallback: {
             fs: false, // Tells Webpack to ignore 'fs' module
             path: require.resolve('path-browserify'), // Provides a polyfill for 'path'
+            buffer: require.resolve('buffer/'), // Provides a polyfill for 'buffer'
+            os: require.resolve('os-browserify/browser'), // Provides a polyfill for 'os'
         },
     },
     node: {
         __dirname: false, // It's often useful to not mess with __dirname in Electron
         __filename: false, // Same for __filename
     },
+    plugins: [
+        new webpack.ProvidePlugin({
+            Buffer: ['buffer', 'Buffer'],
+        }),
+    ],
 };

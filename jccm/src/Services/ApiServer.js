@@ -22,6 +22,8 @@ import {
     msSetCloudOrgs,
     msLoadDeviceFacts,
     msSaveDeviceFacts,
+    msLoadSubnets,
+    msSaveSubnets
 } from './mainStore';
 import {
     acLookupRegions,
@@ -450,17 +452,34 @@ export const setupApiHandlers = () => {
         return { deviceFacts: true };
     });
 
+
+    ipcMain.handle('saLoadSubnets', async (event) => {
+        console.log('main: saLoadSubnets');
+        const subnets = await msLoadSubnets();
+
+        return { status: true, subnets };
+    });
+
+    ipcMain.handle('saSaveSubnets', async (event, args) => {
+        console.log('main: saSaveSubnets');
+        const subnets = args.subnets;
+        await msSaveSubnets(subnets);
+        console.log('main: saSaveSubnets:', subnets);
+
+        return { status: true };
+    });
+
+
     ipcMain.handle('saGetDeviceFacts', async (event, args) => {
         console.log('main: saGetDeviceFacts');
 
         try {
-            const { address, port, username, password } = args;
-            const reply = await getDeviceFacts(address, port, username, password);
+            const { address, port, username, password, timeout } = args;
+            const reply = await getDeviceFacts(address, port, username, password, timeout);
 
             return { facts: true, reply };
         } catch (error) {
-            console.error('saGetDeviceFacts: Junos command execution failed!', args, error);
-
+            // console.error('saGetDeviceFacts: Junos command execution failed!', args, error);
             return { facts: false, reply: error };
         }
     });

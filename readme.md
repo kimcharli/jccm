@@ -13,12 +13,15 @@ Juniper Cloud Connection Manager (JCCM) is a standalone application designed to 
 - **Integrated SSH Terminal:** Optionally open an SSH terminal within the same window for direct device management.
 - **User-Friendly Interface:** Intuitive UI designed to enhance user experience and simplify network cloud attachment tasks.
 - **Multi-Platform Support:** Available for both Intel-based and ARM-based macOS systems and Intel-based Windows systems.
-- **Social Login Support:** Available for Google Social SSO Login in the tech preview stage.
+- **Social Login Support:** Google Social SSO Login is currently in the tech preview stage.
+- **Network Search Support:** Network subnet search to generate an inventory file is in the tech preview stage.
 
+## Device Adoption Demo
 
-## Demo
+![JCCM Device Adoption Demo](./demo/optimized-jccm.gif)
 
-![JCCM Demo](./demo/optimized-jccm.gif)
+## Network Search Demo
+![JCCM Network Search Demo](./demo/jccm-network-search.gif)
 
 ## Installation
 

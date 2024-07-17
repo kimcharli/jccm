@@ -23,6 +23,9 @@ contextBridge.exposeInMainWorld('electronAPI', {
     saLoadDeviceFacts: () => ipcRenderer.invoke('saLoadDeviceFacts'),
     saSaveDeviceFacts: (args) => ipcRenderer.invoke('saSaveDeviceFacts', args),
 
+    saLoadSubnets: () => ipcRenderer.invoke('saLoadSubnets'),
+    saSaveSubnets: (args) => ipcRenderer.invoke('saSaveSubnets', args),
+
     startSSHConnection: (config) => ipcRenderer.send('startSSHConnection', config),
     sendSSHInput: (id, data) => ipcRenderer.send(`sendSSHInput-${id}`, data),
     resizeSSHSession: (id, size) => ipcRenderer.send(`resizeSSHSession-${id}`, size),
